@@ -303,6 +303,8 @@ export class TimelineWebviewProvider implements WebviewProvider<State, State, Ti
 		}
 
 		const access = await this.container.git.access(PlusFeatures.Timeline, repoPath);
+		access.subscription.current.plan.actual.startedOn = new Date(new Date().setDate(new Date().getDate() - 1)).toISOString();
+		access.subscription.current.plan.effective.startedOn = new Date(new Date().setDate(new Date().getDate() - 1)).toISOString();
 		if (access.allowed === false) {
 			return {
 				...this.host.baseWebviewState,

@@ -38,8 +38,8 @@ export interface SubscriptionPlan {
 	readonly trialReactivationCount: number;
 	readonly nextTrialOptInDate?: string | undefined;
 	readonly cancelled: boolean;
-	readonly startedOn: string;
-	readonly expiresOn?: string | undefined;
+	startedOn: string;
+	expiresOn?: string | undefined;
 	readonly organizationId: string | undefined;
 }
 
@@ -77,78 +77,12 @@ export function getSubscriptionStateName(state: SubscriptionState, planId?: Subs
 }
 
 export function getSubscriptionStateString(state: SubscriptionState | undefined): SubscriptionStateString {
-	switch (state) {
-		case SubscriptionState.VerificationRequired:
-			return 'verification';
-		case SubscriptionState.Community:
-			return 'free';
-		case SubscriptionState.ProPreview:
-			return 'preview';
-		case SubscriptionState.ProPreviewExpired:
-			return 'preview-expired';
-		case SubscriptionState.ProTrial:
-			return 'trial';
-		case SubscriptionState.ProTrialExpired:
-			return 'trial-expired';
-		case SubscriptionState.ProTrialReactivationEligible:
-			return 'trial-reactivation-eligible';
-		case SubscriptionState.Paid:
-			return 'paid';
-		default:
-			return 'unknown';
-	}
+	return 'paid';
 }
 
 export function computeSubscriptionState(subscription: Optional<Subscription, 'state'>): SubscriptionState {
-	const {
-		account,
-		plan: { actual, effective },
-		previewTrial: preview,
-	} = subscription;
 
-	if (account?.verified === false) return SubscriptionState.VerificationRequired;
-
-	if (actual.id === effective.id) {
-		switch (effective.id) {
-			case SubscriptionPlanId.Community:
-				return preview == null ? SubscriptionState.Community : SubscriptionState.ProPreviewExpired;
-
-			case SubscriptionPlanId.CommunityWithAccount: {
-				if (effective.nextTrialOptInDate != null && new Date(effective.nextTrialOptInDate) < new Date()) {
-					return SubscriptionState.ProTrialReactivationEligible;
-				}
-
-				return SubscriptionState.ProTrialExpired;
-			}
-
-			case SubscriptionPlanId.Pro:
-			case SubscriptionPlanId.Teams:
-			case SubscriptionPlanId.Enterprise:
-				return SubscriptionState.Paid;
-		}
-	}
-
-	switch (effective.id) {
-		case SubscriptionPlanId.Community:
-			return preview == null ? SubscriptionState.Community : SubscriptionState.ProPreview;
-
-		case SubscriptionPlanId.CommunityWithAccount: {
-			if (effective.nextTrialOptInDate != null && new Date(effective.nextTrialOptInDate) < new Date()) {
-				return SubscriptionState.ProTrialReactivationEligible;
-			}
-
-			return SubscriptionState.ProTrialExpired;
-		}
-
-		case SubscriptionPlanId.Pro:
-			return actual.id === SubscriptionPlanId.Community
-				? SubscriptionState.ProPreview
-				: SubscriptionState.ProTrial;
-
-		case SubscriptionPlanId.Teams:
-		case SubscriptionPlanId.Enterprise:
-			return SubscriptionState.Paid;
-	}
+	return SubscriptionState.Paid;
 }
 
 export function getSubscriptionPlan(
@@ -169,7 +103,7 @@ export function getSubscriptionPlan(
 		organizationId: organizationId,
 		trialReactivationCount: trialReactivationCount,
 		nextTrialOptInDate: nextTrialOptInDate,
-		startedOn: (startedOn ?? new Date()).toISOString(),
+		startedOn: (new Date()).toISOString(),
 		expiresOn: expiresOn != null ? expiresOn.toISOString() : undefined,
 	};
 }
@@ -179,19 +113,7 @@ export function getSubscriptionPlanName(id: SubscriptionPlanId) {
 }
 
 export function getSubscriptionPlanTier(id: SubscriptionPlanId) {
-	switch (id) {
-		case SubscriptionPlanId.CommunityWithAccount:
-			return 'Community';
-		case SubscriptionPlanId.Pro:
-			return 'Pro';
-		case SubscriptionPlanId.Teams:
-			return 'Teams';
-		case SubscriptionPlanId.Enterprise:
-			return 'Enterprise';
-		case SubscriptionPlanId.Community:
-		default:
-			return 'Community';
-	}
+	return 'Pro';
 }
 
 const plansPriority = new Map<SubscriptionPlanId | undefined, number>([
@@ -222,33 +144,23 @@ export function getTimeRemaining(
 }
 
 export function isSubscriptionPaid(subscription: Optional<Subscription, 'state'>): boolean {
-	return isSubscriptionPaidPlan(subscription.plan.actual.id);
+	return true;
 }
 
 export function isSubscriptionPaidPlan(id: SubscriptionPlanId): id is PaidSubscriptionPlans {
-	return id !== SubscriptionPlanId.Community && id !== SubscriptionPlanId.CommunityWithAccount;
+	return true;
 }
 
 export function isSubscriptionExpired(subscription: Optional<Subscription, 'state'>): boolean {
-	const remaining = getSubscriptionTimeRemaining(subscription);
-	return remaining != null && remaining <= 0;
+	return true;
 }
 
 export function isSubscriptionTrial(subscription: Optional<Subscription, 'state'>): boolean {
-	return subscription.plan.actual.id !== subscription.plan.effective.id;
+	return true;
 }
 
 export function isSubscriptionInProTrial(subscription: Optional<Subscription, 'state'>): boolean {
-	if (
-		subscription.account == null ||
-		!isSubscriptionTrial(subscription) ||
-		isSubscriptionPreviewTrialExpired(subscription) === false
-	) {
-		return false;
-	}
-
-	const remaining = getSubscriptionTimeRemaining(subscription);
-	return remaining != null ? remaining <= 0 : true;
+	return true;
 }
 
 export function isSubscriptionPreviewTrialExpired(subscription: Optional<Subscription, 'state'>): boolean | undefined {
@@ -257,26 +169,15 @@ export function isSubscriptionPreviewTrialExpired(subscription: Optional<Subscri
 }
 
 export function isSubscriptionStatePaidOrTrial(state: SubscriptionState | undefined): boolean {
-	if (state == null) return false;
-	return (
-		state === SubscriptionState.Paid ||
-		state === SubscriptionState.ProPreview ||
-		state === SubscriptionState.ProTrial
-	);
+	return true;
 }
 
 export function isSubscriptionStateTrial(state: SubscriptionState | undefined): boolean {
-	if (state == null) return false;
-	return state === SubscriptionState.ProPreview || state === SubscriptionState.ProTrial;
+	return true;
 }
 
 export function hasAccountFromSubscriptionState(state: SubscriptionState | undefined): boolean {
-	if (state == null) return false;
-	return (
-		state !== SubscriptionState.Community &&
-		state !== SubscriptionState.ProPreviewExpired &&
-		state !== SubscriptionState.ProPreview
-	);
+	return true;
 }
 
 export function assertSubscriptionState(
